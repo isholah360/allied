@@ -1,5 +1,42 @@
 import express from "express";
 import {
+  createAdmin,
+  createOfficer,
+  getOfficers,
+  createFarmer,
+  getFarmersByOfficer,
+  createFarm,
+  getFarmsByFarmer,
+  createCrop,
+  getCropsByFarm,
+  createLivestock,
+  getLivestockByFarm,
+  getFarmDetails,
+  getFarmerDetails,
+  getOfficerDetails,
+  loginOfficer,
+  getFarmers,
+  getFarms,
+  getCrops,
+  getLivestock,
+  getFarmById,
+  updateLivestock,
+  deleteLivestock,
+  updateCrop,
+  deleteCrop,
+  updateFarmer,
+  deleteFarmer,
+  updateOfficer,
+  deleteOfficer,
+  getFarmsByOfficer,
+  logout,
+  logoutAdmin,
+  loginAdmin,
+  updateAdmin,
+  adminAnalytics,
+} from "./controller/agro.controller.js";
+
+import {
   createAgroAlliedRegistry,
   deleteAgroAlliedRegistry,
   getAllRegistries,
@@ -10,17 +47,86 @@ import {
 
 const router = express.Router();
 
-router.get("/test", (req, res) => {
-  res.send("Hello AgroAllied from routes!");
-});
+// ADMIN
+router.post("/admins/create", createAdmin);
+router.post("/admins/login", loginAdmin);
+router.post("/logout",  logoutAdmin);
+router.put("/admins/:adminId", updateAdmin);
+router.get("/admins/analytics", adminAnalytics);
+
+
+// OFFICER
+router.post("/officers/create", createOfficer);
+router.post("/officers/login", loginOfficer);
+router.post("/officers/logout", logout);
+router.get("/get/officers", getOfficers);
+router.put("/officers/:officerId", updateOfficer);
+router.get("/officers/:officerId", getOfficerDetails);
+router.delete("/officers/:officerId", deleteOfficer);
+
+
+// FARMER
+router.post("/farmers/create", createFarmer);
+router.get("/farmers/:farmerId", getFarmersByOfficer);
+router.get("/farmers/:farmerId/details", getFarmerDetails);
+router.get("/get/farmers", getFarmers);
+router.put("/farmers/:farmerId", updateFarmer);
+router.delete("/farmers/:farmerId", deleteFarmer);
+
+
+// FARM
+router.post("/farms/create", createFarm);
+router.get("/farms/farmer/:farmerId", getFarmById);
+router.get("/farms/farmer/:farmerId/details", getFarmDetails);
+router.get("/get/farms", getFarms);
+router.get("/get/farms/:officerId", getFarmsByOfficer);
+
+
+
+// CROP
+router.post("/crops/create", createCrop);
+router.get("/crops/farm/:farmId", getCropsByFarm);
+router.get("/get/crops", getCrops);
+router.put("/crops/:id", updateCrop);
+router.delete("/crops/:id", deleteCrop);
+
+// LIVESTOCK
+router.post("/livestocks/create", createLivestock);
+router.get("/livestock/farm/:farmId", getLivestockByFarm);
+router.get("/get/livestocks", getLivestock);
+router.put("/livestock/:id", updateLivestock);
+router.delete("/livestock/:id", deleteLivestock);
+
+
+// AGROALLIED
 
 router.post("/agroallied/create", createAgroAlliedRegistry);
 router.get("/agroallied/getall", getAllRegistries);
-
 router.get("/agroallied/farm/:farmid", getByFarmId);
 router.get("/agroallied/farmer/:farmerid", getByFarmerId);
-
 router.put("/agroallied/edit/:id", updateAgroAlliedRegistry);
 router.delete("/agroallied/delete/:id", deleteAgroAlliedRegistry);
 
 export default router;
+
+
+
+// import express from "express";
+
+
+// const router = express.Router();
+
+// router.get("/test", (req, res) => {
+//   res.send("Hello AgroAllied from routes!");
+// });
+
+// router.post("/agroallied/create", createAgroAlliedRegistry);
+// router.get("/agroallied/getall", getAllRegistries);
+
+// router.get("/agroallied/farm/:farmid", getByFarmId);
+// router.get("/agroallied/farmer/:farmerid", getByFarmerId);
+
+// router.put("/agroallied/edit/:id", updateAgroAlliedRegistry);
+// router.delete("/agroallied/delete/:id", deleteAgroAlliedRegistry);
+
+// export default router;

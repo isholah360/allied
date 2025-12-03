@@ -1,0 +1,737 @@
+import Admin from "../model/admin.model.js";
+import Officer from "../model/officer.model.js";
+import Farmer from "../model/farmer.model.js";
+import Farm from "../model/farm.model.js";
+import Crop from "../model/crop.model.js";
+import Livestock from "../model/livestock.model.js";
+import jwt from "jsonwebtoken"; 
+import bcryptjs from "bcryptjs";
+
+/* =============================
+   ADMIN CONTROLLERS
+============================= */
+// Create Admin
+export const createAdmin = async (req, res) => {
+  try {
+    const admin = await Admin.create(req.body);
+    res.status(201).json(admin);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+//sign in admin
+export const loginAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password)
+      return res.status(400).json({ message: "Email and password required" });
+
+    const admin = await Admin.findOne({ email });
+    if (!admin)
+      return res.status(401).json({ message: "Invalid email or password" });
+
+    // Check password
+    const isMatch = bcrypt.compareSync(password, admin.password);
+    if (!isMatch)
+      return res.status(401).json({ message: "Invalid email or password" });
+
+    // Sign JWT
+    const token = jwt.sign(
+      { adminId: admin._id, role: "admin" },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      message: "Admin login successful",
+      token,
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const logoutAdmin = async (req, res) => {
+  try {
+    return res.status(200).json({ message: "Logout successful" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update Admin
+export const updateAdmin = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+
+    const updated = await Admin.findByIdAndUpdate(
+      adminId,
+      req.body,
+      { new: true }
+    ).select("-password");
+
+    if (!updated)
+      return res.status(404).json({ message: "Admin not found" });
+
+    res.json({
+      message: "Admin updated successfully",
+      admin: updated
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin Analytics Dashboard
+export const adminAnalytics = async (req, res) => {
+  try {
+
+    // RAW COUNTS
+    const [
+      totalOfficers,
+      totalFarmers,
+      totalFarms,
+      totalCrops,
+      totalLivestock
+    ] = await Promise.all([
+      Officer.countDocuments(),
+      Farmer.countDocuments(),
+      Farm.countDocuments(),
+      Crop.countDocuments(),
+      Livestock.countDocuments()
+    ]);
+
+    // Officer Activity Summary (linked records)
+    const officerPerformance = await Officer.aggregate([
+      {
+        $lookup: {
+          from: "farmers",
+          localField: "_id",
+          foreignField: "officerId",
+          as: "farmerList"
+        }
+      },
+      {
+        $lookup: {
+          from: "farms",
+          localField: "_id",
+          foreignField: "officerId",
+          as: "farmList"
+        }
+      },
+      {
+        $lookup: {
+          from: "crops",
+          localField: "_id",
+          foreignField: "officerId",
+          as: "cropList"
+        }
+      },
+      {
+        $lookup: {
+          from: "livestocks",
+          localField: "_id",
+          foreignField: "officerId",
+          as: "livestockList"
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          farmers: { $size: "$farmerList" },
+          farms: { $size: "$farmList" },
+          crops: { $size: "$cropList" },
+          livestock: { $size: "$livestockList" }
+        }
+      }
+    ]);
+
+    // Crop Type Analytics
+    const cropTypes = await Crop.aggregate([
+      { $group: { _id: "$cropType", value: { $sum: 1 } } },
+      { $project: { type: "$_id", value: 1, _id: 0 } }
+    ]);
+
+    // Livestock Type Analytics
+    const livestockTypes = await Livestock.aggregate([
+      { $group: { _id: "$type", value: { $sum: 1 } } },
+      { $project: { type: "$_id", value: 1, _id: 0 } }
+    ]);
+
+    // Monthly Registrations
+    const monthlyCrops = await Crop.aggregate([
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          value: { $sum: 1 }
+        }
+      },
+      { $project: { month: "$_id", value: 1, _id: 0 } }
+    ]);
+
+    const monthlyLivestock = await Livestock.aggregate([
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          value: { $sum: 1 }
+        }
+      },
+      { $project: { month: "$_id", value: 1, _id: 0 } }
+    ]);
+
+    res.json({
+      metrics: {
+        totalOfficers,
+        totalFarmers,
+        totalFarms,
+        totalCrops,
+        totalLivestock,
+      },
+      analytics: {
+        officerPerformance,
+        cropTypes,
+        livestockTypes,
+        monthlyCrops,
+        monthlyLivestock
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+/* =============================
+   OFFICER CONTROLLERS
+============================= */
+export const createOfficer = async (req, res) => {
+  try {
+    const officer = await Officer.create(req.body);
+    delete officer.password
+    res.status(201).json(officer);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const loginOfficer = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const officer = await Officer.findOne({ email });
+    if (!officer) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+ 
+    // const isMatch = bcryptjs.compareSync(password, officer.password);
+    // if (!isMatch) {
+    //   return res.status(401).json({ message: "Invalid email or password" });
+    // }
+
+
+    const token = jwt.sign(
+      { id: officer._id, email: officer.email },
+      process.env.JWT_SECRET || "your_jwt_secret", 
+      { expiresIn: "7d" }
+    );
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", 
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
+    };
+
+    res.cookie("token", token, cookieOptions).status(200).json({
+      message: "Login successful",
+      token,
+      adminId: officer.adminId,
+      officer: {
+        id: officer._id,
+        name: officer.name,
+        email: officer.email,
+        username: officer.username,
+        firstname: officer.firstname,
+        lastname: officer.lastname,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getOfficers = async (req, res) => {
+  try {
+    const officers = await Officer.find().populate('adminId', 'name email');
+    delete officers.password
+    res.json(officers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const getOfficerDetails = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+
+    const officer = await Officer.findById(officerId).select("-password");
+    if (!officer) {
+      return res.status(404).json({ message: "Officer not found" });
+    }
+
+    // RAW DATA (existing)
+    const farmers = await Farmer.find({ officerId });
+    const farms = await Farm.find({ officerId });
+    const crops = await Crop.find({ officerId });
+    const livestock = await Livestock.find({ officerId });
+
+    // ===== ANALYTICS SECTION ===== //
+
+    // ✔ Counts
+    const metrics = {
+      totalFarmers: farmers.length,
+      totalFarms: farms.length,
+      totalCrops: crops.length,
+      totalLivestock: livestock.length,
+    };
+
+    // ✔ Crop Type Distribution
+    const cropTypes = await Crop.aggregate([
+      { $match: { officerId } },
+      { $group: { _id: "$cropType", value: { $sum: 1 } } },
+      { $project: { name: "$_id", value: 1, _id: 0 } }
+    ]);
+
+    // ✔ Livestock Type Distribution
+    const livestockTypes = await Livestock.aggregate([
+      { $match: { officerId } },
+      { $group: { _id: "$type", value: { $sum: 1 } } },
+      { $project: { type: "$_id", value: 1, _id: 0 } }
+    ]);
+
+    // ✔ Farms per Farmer
+    const farmsPerFarmer = await Farm.aggregate([
+      { $match: { officerId } },
+      { $group: { _id: "$farmerId", farms: { $sum: 1 } } },
+      {
+        $lookup: {
+          from: "farmers",
+          localField: "_id",
+          foreignField: "_id",
+          as: "farmer"
+        }
+      },
+      { $unwind: "$farmer" },
+      { $project: { farmer: "$farmer.name", farms: 1 } }
+    ]);
+
+ 
+    const monthlyCrops = await Crop.aggregate([
+      { $match: { officerId } },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          value: { $sum: 1 }
+        }
+      },
+      {
+        $project: { month: "$_id", value: 1, _id: 0 }
+      }
+    ]);
+
+   
+    const monthlyLivestock = await Livestock.aggregate([
+      { $match: { officerId } },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          value: { $sum: 1 }
+        }
+      },
+      {
+        $project: { month: "$_id", value: 1, _id: 0 }
+      }
+    ]);
+
+  
+    res.status(200).json({
+      officer,
+      farmers,
+      farms,
+      crops,
+      livestock,
+      metrics,
+      analytics: {
+        cropTypes,
+        livestockTypes,
+        farmsPerFarmer,
+        monthlyCrops,
+        monthlyLivestock
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const updateOfficer = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+
+    const updated = await Officer.findByIdAndUpdate(officerId, req.body, {
+      new: true,
+      runValidators: true,
+      select: "-password",
+    });
+
+    if (!updated)
+      return res.status(404).json({ message: "Officer not found" });
+
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    res.clearCookie("token").json({ message: "Logout successful" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// DELETE OFFICER
+export const deleteOfficer = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+
+    const deleted = await Officer.findByIdAndDelete(officerId);
+    if (!deleted)
+      return res.status(404).json({ message: "Officer not found" });
+
+    res.json({ message: "Officer deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* =============================
+   FARMER CONTROLLERS
+============================= */
+export const createFarmer = async (req, res) => {
+  try {
+    const farmer = await Farmer.create(req.body);
+    res.status(201).json(farmer);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const getFarmersByOfficer = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+    const farmers = await Farmer.find({ officerId });
+    res.json(farmers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getFarmers = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+    const farmers = await Farmer.find({  });
+    res.json(farmers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+// UPDATE FARMER
+export const updateFarmer = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+
+    const updated = await Farmer.findByIdAndUpdate(farmerId, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updated)
+      return res.status(404).json({ message: "Farmer not found" });
+
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const deleteFarmer = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+
+    const deleted = await Farmer.findByIdAndDelete(farmerId);
+    if (!deleted)
+      return res.status(404).json({ message: "Farmer not found" });
+
+    res.json({ message: "Farmer deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const getFarmerDetails = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+
+ 
+    const farmer = await Farmer.findById(farmerId);
+    if (!farmer) {
+      return res.status(404).json({ message: "Farmer not found" });
+    }
+ 
+    const farms = await Farm.find({ farmerId });
+    const crops = await Crop.find({ farmerId });
+    const livestock = await Livestock.find({ farmerId });
+    res.json({
+      farmer,
+      farms,
+      crops,
+      livestock,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+/* =============================
+   FARM CONTROLLERS
+============================= */
+export const createFarm = async (req, res) => {
+  try {
+    const farm = await Farm.create(req.body);
+    res.status(201).json(farm);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const getFarmsByFarmer = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    const farms = await Farm.find({ farmerId });
+    res.json(farms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getFarmsByOfficer = async (req, res) => {
+  try {
+     const { officerId } = req.params;
+    const farms = await Farm.find({ officerId });
+    res.json(farms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getFarms = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    const farms = await Farm.find({});
+    res.json(farms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getFarmById = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    const farms = await Farm.find({farmerId});
+    res.json(farms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getFarmDetails = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+
+    const farm = await Farm.findById(farmId)
+      .populate("farmerId", "name phone address") 
+      .populate("officerId", "name email"); 
+
+    if (!farm) {
+      return res.status(404).json({ message: "Farm not found" });
+    }
+
+    const [crops, livestock] = await Promise.all([
+      Crop.find({ farmId }),
+      Livestock.find({ farmId }),
+    ]);
+    res.json({
+      farm,
+      crops,
+      livestock,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+/* =============================
+   CROP CONTROLLERS
+============================= */
+export const createCrop = async (req, res) => {
+  try {
+    const crop = await Crop.create(req.body);
+    res.status(201).json(crop);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const getCropsByFarm = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+    const crops = await Crop.find({ farmId });
+    res.json(crops);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getCrops = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+    const crops = await Crop.find();
+    res.json(crops);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const updateCrop = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const crop = await Crop.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!crop) return res.status(404).json({ error: "Crop not found" });
+
+    res.json(crop);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+
+export const deleteCrop = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const crop = await Crop.findByIdAndDelete(id);
+
+    if (!crop) return res.status(404).json({ error: "Crop not found" });
+
+    res.json({ message: "Crop deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+/* =============================
+   LIVESTOCK CONTROLLERS
+============================= */
+export const createLivestock = async (req, res) => {
+  try {
+    const livestock = await Livestock.create(req.body);
+    res.status(201).json(livestock);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+// DELETE LIVESTOCK By FARM
+export const getLivestockByFarm = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+    const livestock = await Livestock.find({ farmId });
+    res.json(livestock);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET LIVESTOCK
+export const getLivestock = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+    const livestock = await Livestock.find();
+    res.json(livestock);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateLivestock = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const livestock = await Livestock.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!livestock)
+      return res.status(404).json({ error: "Livestock not found" });
+
+    res.json(livestock);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// DELETE LIVESTOCK
+export const deleteLivestock = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const livestock = await Livestock.findByIdAndDelete(id);
+
+    if (!livestock)
+      return res.status(404).json({ error: "Livestock not found" });
+
+    res.json({ message: "Livestock deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
