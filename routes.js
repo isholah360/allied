@@ -76,9 +76,9 @@ router.delete("/farmers/:farmerId", deleteFarmer);
 
 // FARM
 router.post("/farms/create", createFarm);
+router.get("/get/farms/:id", getFarms);
 router.get("/farms/farmer/:farmerId", getFarmById);
-router.get("/farms/farmer/:farmerId/details", getFarmDetails);
-router.get("/get/farms", getFarms);
+router.get("/farms/:farmId/details", getFarmDetails);
 router.get("/get/farms/:officerId", getFarmsByOfficer);
 
 

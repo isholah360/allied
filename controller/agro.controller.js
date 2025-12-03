@@ -559,8 +559,8 @@ export const getFarmsByOfficer = async (req, res) => {
 
 export const getFarms = async (req, res) => {
   try {
-    const { farmerId } = req.params;
-    const farms = await Farm.find({});
+    const { farmId } = req.params;
+    const farms = await Farm.find({_id:farmId});
     res.json(farms);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -580,8 +580,9 @@ export const getFarmById = async (req, res) => {
 export const getFarmDetails = async (req, res) => {
   try {
     const { farmId } = req.params;
+    console.log(farmId)
 
-    const farm = await Farm.findById(farmId)
+    const farm = await Farm.findById({_id:farmId})
       .populate("farmerId", "name phone address") 
       .populate("officerId", "name email"); 
 
