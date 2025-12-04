@@ -6,7 +6,6 @@ import {
   createFarmer,
   getFarmersByOfficer,
   createFarm,
-  getFarmsByFarmer,
   createCrop,
   getCropsByFarm,
   createLivestock,
@@ -34,6 +33,12 @@ import {
   loginAdmin,
   updateAdmin,
   adminAnalytics,
+  createAgroAllied,
+  getAllAgroAllied,
+  getAgroAlliedById,
+  getAlliedByFarmId,
+  getAlliedByOfficerId,
+  getAlliedByFarmerId,
 } from "./controller/agro.controller.js";
 
 import {
@@ -106,6 +111,17 @@ router.get("/agroallied/farm/:farmid", getByFarmId);
 router.get("/agroallied/farmer/:farmerid", getByFarmerId);
 router.put("/agroallied/edit/:id", updateAgroAlliedRegistry);
 router.delete("/agroallied/delete/:id", deleteAgroAlliedRegistry);
+
+// ProAGROALLIED
+
+router.post("/agroallied/pro/create", createAgroAllied);
+router.get("/agroallied/pro/getall", getAllAgroAllied);
+router.get("/agroallied/pro/:id", getAgroAlliedById);
+router.get("/agroallied/farm/pro/:farmid", getAlliedByFarmId);
+router.get("/agroallied/farm/pro/:officerid", getAlliedByOfficerId);
+router.get("/agroallied/farmer/pro/:farmerid", getAlliedByFarmerId);
+router.put("/agroallied/pro/edit/:id", updateAgroAlliedRegistry);
+router.delete("/agroallied/pro/delete/:id", deleteAgroAlliedRegistry);
 
 export default router;
 

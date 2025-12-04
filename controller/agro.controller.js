@@ -4,6 +4,7 @@ import Farmer from "../model/farmer.model.js";
 import Farm from "../model/farm.model.js";
 import Crop from "../model/crop.model.js";
 import Livestock from "../model/livestock.model.js";
+import AgroAllied from "../model/agroallie.model.js"
 import jwt from "jsonwebtoken"; 
 import bcryptjs from "bcryptjs";
 
@@ -590,14 +591,16 @@ export const getFarmDetails = async (req, res) => {
       return res.status(404).json({ message: "Farm not found" });
     }
 
-    const [crops, livestock] = await Promise.all([
+    const [crops, livestock, agroallied] = await Promise.all([
       Crop.find({ farmId }),
       Livestock.find({ farmId }),
+      AgroAllied.find({ farmId }).populate("farmerId farmId officerId"),,
     ]);
     res.json({
       farm,
       crops,
       livestock,
+      agroallied
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -734,5 +737,128 @@ export const deleteLivestock = async (req, res) => {
     res.json({ message: "Livestock deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+// AGROALLIED
+
+
+export const createAgroAllied = async (req, res) => {
+  try {
+    const newRecord = new AgroAllied(req.body);
+    const saved = await newRecord.save();
+    res.status(201).json(saved);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// GET ALL
+export const getAllAgroAllied = async (req, res) => {
+  try {
+    const records = await AgroAllied.find()
+      .populate("officerId", "name email")
+      .populate("farmerId", "name phone address")
+      .populate("farmId", "name location size");
+
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// GET BY ID
+export const getAgroAlliedById = async (req, res) => {
+  try {
+    const record = await AgroAllied.findById(req.params.id)
+      .populate("officerId", "name email")
+      .populate("farmerId", "name phone address")
+      .populate("farmId", "name location size");
+
+    if (!record) return res.status(404).json({ message: "Record not found" });
+
+    res.json(record);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// GET BY officerId
+export const getAlliedByOfficerId = async (req, res) => {
+  try {
+    const { officerId } = req.params;
+
+    const records = await AgroAllied.find({ officerId })
+      .populate("officerId", "name email")
+      .populate("farmerId", "name phone address")
+      .populate("farmId", "name location size");
+
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// GET BY farmerId
+export const getAlliedByFarmerId = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+
+    const records = await AgroAllied.find({ farmerId })
+      .populate("officerId", "name email")
+      .populate("farmerId", "name phone address")
+      .populate("farmId", "name location size");
+
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// GET BY farmId
+export const getAlliedByFarmId = async (req, res) => {
+  try {
+    const { farmId } = req.params;
+
+    const records = await AgroAllied.find({ farmId })
+      .populate("officerId", "name email")
+      .populate("farmerId", "name phone address")
+      .populate("farmId", "name location size");
+
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// UPDATE
+export const updateAgroAllied = async (req, res) => {
+  try {
+    const updated = await AgroAllied.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: "Record not found" });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// DELETE
+export const deleteAgroAllied = async (req, res) => {
+  try {
+    const deleted = await AgroAllied.findByIdAndDelete(req.params.id);
+
+    if (!deleted) return res.status(404).json({ message: "Record not found" });
+
+    res.json({ message: "Record deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
