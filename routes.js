@@ -39,11 +39,14 @@ import {
   getAlliedByFarmId,
   getAlliedByOfficerId,
   getAlliedByFarmerId,
+  getCropById,
+  getLivestockById,
 } from "./controller/agro.controller.js";
 
 import {
   createAgroAlliedRegistry,
   deleteAgroAlliedRegistry,
+  getAlliedById,
   getAllRegistries,
   getByFarmerId,
   getByFarmId,
@@ -92,13 +95,15 @@ router.get("/get/farms/:officerId", getFarmsByOfficer);
 router.post("/crops/create", createCrop);
 router.get("/crops/farm/:farmId", getCropsByFarm);
 router.get("/get/crops", getCrops);
-router.put("/crops/:id", updateCrop);
+router.get("/get/crops/:id", getCropById);
+router.put("/crops/update/:id", updateCrop);
 router.delete("/crops/:id", deleteCrop);
 
 // LIVESTOCK
 router.post("/livestocks/create", createLivestock);
 router.get("/livestock/farm/:farmId", getLivestockByFarm);
 router.get("/get/livestocks", getLivestock);
+router.get("/get/livestocks/id", getLivestockById);
 router.put("/livestock/:id", updateLivestock);
 router.delete("/livestock/:id", deleteLivestock);
 

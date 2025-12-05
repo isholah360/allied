@@ -639,6 +639,15 @@ export const getCrops = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+export const getCropById = async (req, res) => {
+  try {
+    const { Id } = req.params;
+    const crops = await Crop.find({_id:Id});
+    res.json(crops);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 
 export const updateCrop = async (req, res) => {
@@ -684,7 +693,7 @@ export const createLivestock = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
-// DELETE LIVESTOCK By FARM
+
 export const getLivestockByFarm = async (req, res) => {
   try {
     const { farmId } = req.params;
@@ -700,6 +709,15 @@ export const getLivestock = async (req, res) => {
   try {
     const { farmId } = req.params;
     const livestock = await Livestock.find();
+    res.json(livestock);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+export const getLivestockById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const livestock = await Livestock.find({_id:id});
     res.json(livestock);
   } catch (err) {
     res.status(500).json({ error: err.message });
