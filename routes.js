@@ -18,7 +18,6 @@ import {
   getFarms,
   getCrops,
   getLivestock,
-  getFarmById,
   updateLivestock,
   deleteLivestock,
   updateCrop,
