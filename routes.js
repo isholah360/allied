@@ -42,6 +42,7 @@ import {
   getLivestockById,
   getFarmByFarmerId,
   updateAgroAllied,
+  deleteAgroAllied,
 } from "./controller/agro.controller.js";
 
 import {
@@ -128,7 +129,7 @@ router.get("/agroallied/farm/pro/:farmid", getAlliedByFarmId);
 router.get("/agroallied/farm/pro/:officerid", getAlliedByOfficerId);
 router.get("/agroallied/farmer/pro/:farmerid", getAlliedByFarmerId);
 router.put("/agroallied/pro/edit/:id", updateAgroAllied);
-router.delete("/agroallied/pro/delete/:id", deleteAgroAlliedRegistry);
+router.delete("/agroallied/pro/delete/:id", deleteAgroAllied);
 
 export default router;
 
