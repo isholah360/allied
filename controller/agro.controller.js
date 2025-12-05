@@ -560,15 +560,25 @@ export const getFarmsByOfficer = async (req, res) => {
 
 export const getFarms = async (req, res) => {
   try {
-    const { farmId } = req.params;
-    const farms = await Farm.find({_id:farmId});
+   
+    const farms = await Farm.find();
     res.json(farms);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-export const getFarmById = async (req, res) => {
+export const getByFarmId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const farms = await Farm.find({_id:id});
+    res.json(farms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getFarmByFarmerId = async (req, res) => {
   try {
     const { farmerId } = req.params;
     const farms = await Farm.find({farmerId});
@@ -608,6 +618,8 @@ export const getFarmDetails = async (req, res) => {
 };
 
 
+
+
 /* =============================
    CROP CONTROLLERS
 ============================= */
@@ -641,8 +653,8 @@ export const getCrops = async (req, res) => {
 };
 export const getCropById = async (req, res) => {
   try {
-    const { Id } = req.params;
-    const crops = await Crop.find({_id:Id});
+    const { id } = req.params;
+    const crops = await Crop.find({_id:id});
     res.json(crops);
   } catch (err) {
     res.status(500).json({ error: err.message });

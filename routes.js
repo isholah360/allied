@@ -41,6 +41,7 @@ import {
   getAlliedByFarmerId,
   getCropById,
   getLivestockById,
+  getFarmByFarmerId,
 } from "./controller/agro.controller.js";
 
 import {
@@ -84,8 +85,9 @@ router.delete("/farmers/:farmerId", deleteFarmer);
 
 // FARM
 router.post("/farms/create", createFarm);
-router.get("/get/farms/:id", getFarms);
-router.get("/farms/farmer/:farmerId", getFarmById);
+router.get("/get/farms/all", getFarms);
+router.get("/get/farms/:id", getByFarmId);
+router.get("/farms/:farmerId", getFarmByFarmerId);
 router.get("/farms/:farmId/details", getFarmDetails);
 router.get("/get/farms/:officerId", getFarmsByOfficer);
 
@@ -94,7 +96,7 @@ router.get("/get/farms/:officerId", getFarmsByOfficer);
 // CROP
 router.post("/crops/create", createCrop);
 router.get("/crops/farm/:farmId", getCropsByFarm);
-router.get("/get/crops", getCrops);
+router.get("/get/crops/all", getCrops);
 router.get("/get/crops/:id", getCropById);
 router.put("/crops/update/:id", updateCrop);
 router.delete("/crops/:id", deleteCrop);
@@ -102,8 +104,8 @@ router.delete("/crops/:id", deleteCrop);
 // LIVESTOCK
 router.post("/livestocks/create", createLivestock);
 router.get("/livestock/farm/:farmId", getLivestockByFarm);
-router.get("/get/livestocks", getLivestock);
-router.get("/get/livestocks/id", getLivestockById);
+router.get("/get/livestocks/all", getLivestock);
+router.get("/get/livestocks/:id", getLivestockById);
 router.put("/livestock/:id", updateLivestock);
 router.delete("/livestock/:id", deleteLivestock);
 
