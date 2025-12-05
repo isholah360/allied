@@ -617,6 +617,36 @@ export const getFarmDetails = async (req, res) => {
   }
 };
 
+export const updateFarm = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const crop = await Farm.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!crop) return res.status(404).json({ error: "Farm not found" });
+
+    res.json(crop);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const deleteFarm = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const crop = await Farm.findByIdAndDelete(id);
+
+    if (!crop) return res.status(404).json({ error: "Farm not found" });
+
+    res.json({ message: "Farm deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
 
 
@@ -865,7 +895,7 @@ export const getAlliedByFarmId = async (req, res) => {
 
 // UPDATE
 export const updateAgroAllied = async (req, res) => {
-  
+
   try {
     const updated = await AgroAllied.findByIdAndUpdate(
       req.params.id,
