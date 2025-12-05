@@ -865,6 +865,7 @@ export const getAlliedByFarmId = async (req, res) => {
 
 // UPDATE
 export const updateAgroAllied = async (req, res) => {
+  
   try {
     const updated = await AgroAllied.findByIdAndUpdate(
       req.params.id,
