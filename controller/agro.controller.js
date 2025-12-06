@@ -466,12 +466,24 @@ export const getFarmers = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getFarmerById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(id)
+    const farmers = await Farmer.find({ _id: id });
+    res.json(farmers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // UPDATE FARMER
 export const updateFarmer = async (req, res) => {
   try {
-    const { farmerId } = req.params;
+    const { id } = req.params;
 
-    const updated = await Farmer.findByIdAndUpdate(farmerId, req.body, {
+    const updated = await Farmer.findByIdAndUpdate({_id:id}, req.body, {
       new: true,
       runValidators: true,
     });
@@ -487,9 +499,9 @@ export const updateFarmer = async (req, res) => {
 
 export const deleteFarmer = async (req, res) => {
   try {
-    const { farmerId } = req.params;
+    const { id} = req.params;
 
-    const deleted = await Farmer.findByIdAndDelete(farmerId);
+    const deleted = await Farmer.findByIdAndDelete({_id:id});
     if (!deleted)
       return res.status(404).json({ message: "Farmer not found" });
 
