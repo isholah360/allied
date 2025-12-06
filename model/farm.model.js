@@ -5,7 +5,8 @@ const farmSchema = new mongoose.Schema({
   farmerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Farmer', required: true },
   name: { type: String, required: true },
   location: { type: String, required: true },
-  size: Number, // in hectares or acres
+  size: Number,
+  lga: String,
   soilType: String
 }, { timestamps: true });
 

@@ -568,9 +568,10 @@ export const getFarms = async (req, res) => {
   }
 };
 
-export const getByFarmId = async (req, res) => {
+export const getFarmById = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(id)
     const farms = await Farm.find({_id:id});
     res.json(farms);
   } catch (err) {
