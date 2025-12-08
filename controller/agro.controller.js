@@ -9,7 +9,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import bcryptjs from "bcryptjs";
 import { sendOfficerEmail } from "../model/utils.js";
-import Notification from "../model/Notification.js";
+import Notification from "../model/notification.model.js";
 
 /* =============================
    ADMIN CONTROLLERS
