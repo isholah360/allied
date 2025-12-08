@@ -47,6 +47,12 @@ import {
   deleteFarm,
   getFarmById,
   getFarmerById,
+  getNotificationsById,
+  getAllNotification,
+  getNotifications,
+  createNotification,
+  markAsRead,
+  deleteNotification,
 } from "./controller/agro.controller.js";
 
 import {
@@ -64,20 +70,18 @@ const router = express.Router();
 // ADMIN
 router.post("/admins/create", createAdmin);
 router.post("/admins/login", loginAdmin);
-router.post("/logout",  logoutAdmin);
+router.post("/logout", logoutAdmin);
 router.put("/admins/:adminId", updateAdmin);
 router.get("/admins/analytics", adminAnalytics);
-
 
 // OFFICER
 router.post("/officers/create", createOfficer);
 router.post("/officers/login", loginOfficer);
 router.post("/officers/logout", logout);
 router.get("/get/officers", getOfficers);
-router.put("/officers/:officerId", updateOfficer);
 router.get("/officers/:officerId", getOfficerDetails);
+router.put("/officers/:officerId", updateOfficer);
 router.delete("/officers/:officerId", deleteOfficer);
-
 
 // FARMER
 router.post("/farmers/create", createFarmer);
@@ -88,7 +92,6 @@ router.get("/get/farmers", getFarmers);
 router.put("/farmers/:id", updateFarmer);
 router.delete("/farmers/:id", deleteFarmer);
 
-
 // FARM
 router.post("/farms/create", createFarm);
 router.get("/get/farms/all", getFarms);
@@ -98,8 +101,6 @@ router.get("/farms/:farmId/details", getFarmDetails);
 router.get("/get/farms/:officerId", getFarmsByOfficer);
 router.put("/farm/edit/:id", updateFarm);
 router.delete("/farm/delete/:id", deleteFarm);
-
-
 
 // CROP
 router.post("/crops/create", createCrop);
@@ -116,7 +117,6 @@ router.get("/get/livestocks/all", getLivestock);
 router.get("/get/livestocks/:id", getLivestockById);
 router.put("/livestock/:id", updateLivestock);
 router.delete("/livestock/:id", deleteLivestock);
-
 
 // AGROALLIED
 
@@ -138,12 +138,24 @@ router.get("/agroallied/farmer/pro/:farmerid", getAlliedByFarmerId);
 router.put("/agroallied/pro/edit/:id", updateAgroAllied);
 router.delete("/agroallied/pro/delete/:id", deleteAgroAllied);
 
+// Create
+router.post("/notification/create", createNotification);
+
+// Get all (or by userId)
+router.get("/", getNotifications);
+// Get all (or by by id)
+router.get("/notification/:id", getNotificationsById);
+// Get all
+router.get("/notification/all", getAllNotification);
+// Mark as read
+router.put("/:id/read", markAsRead);
+
+// Delete
+router.delete("/notification/:id", deleteNotification);
+
 export default router;
 
-
-
 // import express from "express";
-
 
 // const router = express.Router();
 

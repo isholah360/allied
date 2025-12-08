@@ -2,8 +2,6 @@ import mongoose from "mongoose";
 
 export const connectDB = async () => {
   try {
-    console.log("MongoDB URL:", process.env.MONGODB_URL); // debug
-
     const mongoURL = process.env.MONGODB_URL; // FIXED
 
     if (!mongoURL) {

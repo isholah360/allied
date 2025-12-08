@@ -18,7 +18,9 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
+    "mailerlite": "^0.4.0",
     "mongoose": "^9.0.0",
+    "nodemailer": "^7.0.11",
     "nodemon": "^3.1.11"
   }
 }

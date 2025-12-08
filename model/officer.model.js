@@ -14,7 +14,7 @@ const officerSchema = new mongoose.Schema({
   timestamps: true,
   toJSON: { 
     transform(doc, ret) {
-      delete ret.password; // hide password automatically
+      delete ret.password; 
       return ret;
     }
   } 

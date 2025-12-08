@@ -4,9 +4,12 @@ import Farmer from "../model/farmer.model.js";
 import Farm from "../model/farm.model.js";
 import Crop from "../model/crop.model.js";
 import Livestock from "../model/livestock.model.js";
-import AgroAllied from "../model/agroallie.model.js"
-import jwt from "jsonwebtoken"; 
+import AgroAllied from "../model/agroallie.model.js";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import bcryptjs from "bcryptjs";
+import { sendOfficerEmail } from "../model/utils.js";
+import Notification from "../model/Notification.js";
 
 /* =============================
    ADMIN CONTROLLERS
@@ -52,9 +55,8 @@ export const loginAdmin = async (req, res) => {
         id: admin._id,
         name: admin.name,
         email: admin.email,
-      }
+      },
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -73,42 +75,38 @@ export const updateAdmin = async (req, res) => {
   try {
     const { adminId } = req.params;
 
-    const updated = await Admin.findByIdAndUpdate(
-      adminId,
-      req.body,
-      { new: true }
-    ).select("-password");
+    const updated = await Admin.findByIdAndUpdate(adminId, req.body, {
+      new: true,
+    }).select("-password");
 
-    if (!updated)
-      return res.status(404).json({ message: "Admin not found" });
+    if (!updated) return res.status(404).json({ message: "Admin not found" });
 
     res.json({
       message: "Admin updated successfully",
-      admin: updated
+      admin: updated,
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Admin Analytics Dashboard
 export const adminAnalytics = async (req, res) => {
   try {
-
     // RAW COUNTS
     const [
       totalOfficers,
       totalFarmers,
       totalFarms,
       totalCrops,
-      totalLivestock
+      totalLivestock,
+      totalAllied,
     ] = await Promise.all([
       Officer.countDocuments(),
       Farmer.countDocuments(),
       Farm.countDocuments(),
       Crop.countDocuments(),
-      Livestock.countDocuments()
+      Livestock.countDocuments(),
+      AgroAllied.countDocuments(),
     ]);
 
     // Officer Activity Summary (linked records)
@@ -118,32 +116,40 @@ export const adminAnalytics = async (req, res) => {
           from: "farmers",
           localField: "_id",
           foreignField: "officerId",
-          as: "farmerList"
-        }
+          as: "farmerList",
+        },
       },
       {
         $lookup: {
           from: "farms",
           localField: "_id",
           foreignField: "officerId",
-          as: "farmList"
-        }
+          as: "farmList",
+        },
       },
       {
         $lookup: {
           from: "crops",
           localField: "_id",
           foreignField: "officerId",
-          as: "cropList"
-        }
+          as: "cropList",
+        },
       },
       {
         $lookup: {
           from: "livestocks",
           localField: "_id",
           foreignField: "officerId",
-          as: "livestockList"
-        }
+          as: "livestockList",
+        },
+      },
+      {
+        $lookup: {
+          from: "agroallieds",
+          localField: "_id",
+          foreignField: "officerId",
+          as: "alliedList",
+        },
       },
       {
         $project: {
@@ -153,44 +159,47 @@ export const adminAnalytics = async (req, res) => {
           farmers: { $size: "$farmerList" },
           farms: { $size: "$farmList" },
           crops: { $size: "$cropList" },
-          livestock: { $size: "$livestockList" }
-        }
-      }
+          livestock: { $size: "$livestockList" },
+          allied: { $size: "$alliedList" },
+        },
+      },
     ]);
 
     // Crop Type Analytics
     const cropTypes = await Crop.aggregate([
       { $group: { _id: "$cropType", value: { $sum: 1 } } },
-      { $project: { type: "$_id", value: 1, _id: 0 } }
+      { $project: { type: "$_id", value: 1, _id: 0 } },
     ]);
 
     // Livestock Type Analytics
     const livestockTypes = await Livestock.aggregate([
       { $group: { _id: "$type", value: { $sum: 1 } } },
-      { $project: { type: "$_id", value: 1, _id: 0 } }
+      { $project: { type: "$_id", value: 1, _id: 0 } },
+    ]);
+
+    // AgroAllied Type Analytics
+    const alliedTypes = await AgroAllied.aggregate([
+      { $group: { _id: "$type", value: { $sum: 1 } } },
+      { $project: { type: "$_id", value: 1, _id: 0 } },
     ]);
 
     // Monthly Registrations
     const monthlyCrops = await Crop.aggregate([
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          value: { $sum: 1 }
-        }
-      },
-      { $project: { month: "$_id", value: 1, _id: 0 } }
+      { $group: { _id: { $month: "$createdAt" }, value: { $sum: 1 } } },
+      { $project: { month: "$_id", value: 1, _id: 0 } },
     ]);
 
     const monthlyLivestock = await Livestock.aggregate([
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          value: { $sum: 1 }
-        }
-      },
-      { $project: { month: "$_id", value: 1, _id: 0 } }
+      { $group: { _id: { $month: "$createdAt" }, value: { $sum: 1 } } },
+      { $project: { month: "$_id", value: 1, _id: 0 } },
     ]);
 
+    const monthlyAllied = await AgroAllied.aggregate([
+      { $group: { _id: { $month: "$createdAt" }, value: { $sum: 1 } } },
+      { $project: { month: "$_id", value: 1, _id: 0 } },
+    ]);
+
+    // RESPONSE
     res.json({
       metrics: {
         totalOfficers,
@@ -198,31 +207,53 @@ export const adminAnalytics = async (req, res) => {
         totalFarms,
         totalCrops,
         totalLivestock,
+        totalAllied,
       },
       analytics: {
         officerPerformance,
         cropTypes,
         livestockTypes,
+        alliedTypes,
         monthlyCrops,
-        monthlyLivestock
-      }
+        monthlyLivestock,
+        monthlyAllied,
+      },
     });
-
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
 
-
 /* =============================
    OFFICER CONTROLLERS
 ============================= */
+
 export const createOfficer = async (req, res) => {
   try {
-    const officer = await Officer.create(req.body);
-    delete officer.password
-    res.status(201).json(officer);
+    const randomPassword = crypto.randomBytes(5).toString("hex");
+
+    const officerData = {
+      ...req.body,
+      password: randomPassword,
+    };
+
+    const officer = await Officer.create(officerData);
+
+    const officerRes = officer.toObject();
+    delete officerRes.password;
+
+    // Send email with credentials
+    await sendOfficerEmail({
+      gmailUser: process.env.GMAIL_USER,
+      gmailPass: process.env.GMAIL_PASS,
+      officerEmail: officer.email,
+      officerPassword: randomPassword,
+    });
+
+    res.status(201).json(officerRes);
   } catch (err) {
+    console.error(err);
     res.status(400).json({ error: err.message });
   }
 };
@@ -232,45 +263,49 @@ export const loginOfficer = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
     const officer = await Officer.findOne({ email });
     if (!officer) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
- 
+
     // const isMatch = bcryptjs.compareSync(password, officer.password);
     // if (!isMatch) {
     //   return res.status(401).json({ message: "Invalid email or password" });
     // }
 
-
     const token = jwt.sign(
       { id: officer._id, email: officer.email },
-      process.env.JWT_SECRET || "your_jwt_secret", 
+      process.env.JWT_SECRET || "your_jwt_secret",
       { expiresIn: "7d" }
     );
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", 
-      maxAge: 7 * 24 * 60 * 60 * 1000, 
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     };
 
-    res.cookie("token", token, cookieOptions).status(200).json({
-      message: "Login successful",
-      token,
-      adminId: officer.adminId,
-      officer: {
-        id: officer._id,
-        name: officer.name,
-        email: officer.email,
-        username: officer.username,
-        firstname: officer.firstname,
-        lastname: officer.lastname,
-      },
-    });
+    res
+      .cookie("token", token, cookieOptions)
+      .status(200)
+      .json({
+        message: "Login successful",
+        token,
+        adminId: officer.adminId,
+        officer: {
+          id: officer._id,
+          name: officer.name,
+          email: officer.email,
+          username: officer.username,
+          firstname: officer.firstname,
+          lastname: officer.lastname,
+        },
+      });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -278,14 +313,13 @@ export const loginOfficer = async (req, res) => {
 
 export const getOfficers = async (req, res) => {
   try {
-    const officers = await Officer.find().populate('adminId', 'name email');
-    delete officers.password
+    const officers = await Officer.find().populate("adminId", "name email");
+    delete officers.password;
     res.json(officers);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const getOfficerDetails = async (req, res) => {
   try {
@@ -296,11 +330,12 @@ export const getOfficerDetails = async (req, res) => {
       return res.status(404).json({ message: "Officer not found" });
     }
 
-    // RAW DATA (existing)
+    // RAW DATA
     const farmers = await Farmer.find({ officerId });
     const farms = await Farm.find({ officerId });
     const crops = await Crop.find({ officerId });
     const livestock = await Livestock.find({ officerId });
+    const agroAllieds = await AgroAllied.find({ officerId });
 
     // ===== ANALYTICS SECTION ===== //
 
@@ -310,20 +345,21 @@ export const getOfficerDetails = async (req, res) => {
       totalFarms: farms.length,
       totalCrops: crops.length,
       totalLivestock: livestock.length,
+      totalAllied: agroAllieds.length,
     };
 
     // ✔ Crop Type Distribution
     const cropTypes = await Crop.aggregate([
       { $match: { officerId } },
       { $group: { _id: "$cropType", value: { $sum: 1 } } },
-      { $project: { name: "$_id", value: 1, _id: 0 } }
+      { $project: { name: "$_id", value: 1, _id: 0 } },
     ]);
 
     // ✔ Livestock Type Distribution
     const livestockTypes = await Livestock.aggregate([
       { $match: { officerId } },
       { $group: { _id: "$type", value: { $sum: 1 } } },
-      { $project: { type: "$_id", value: 1, _id: 0 } }
+      { $project: { type: "$_id", value: 1, _id: 0 } },
     ]);
 
     // ✔ Farms per Farmer
@@ -335,63 +371,67 @@ export const getOfficerDetails = async (req, res) => {
           from: "farmers",
           localField: "_id",
           foreignField: "_id",
-          as: "farmer"
-        }
+          as: "farmer",
+        },
       },
       { $unwind: "$farmer" },
-      { $project: { farmer: "$farmer.name", farms: 1 } }
+      { $project: { farmer: "$farmer.name", farms: 1 } },
     ]);
 
- 
+    // ✔ Monthly Crop count
     const monthlyCrops = await Crop.aggregate([
       { $match: { officerId } },
       {
         $group: {
           _id: { $month: "$createdAt" },
-          value: { $sum: 1 }
-        }
+          value: { $sum: 1 },
+        },
       },
-      {
-        $project: { month: "$_id", value: 1, _id: 0 }
-      }
+      { $project: { month: "$_id", value: 1, _id: 0 } },
     ]);
 
-   
+    // ✔ Monthly Livestock count
     const monthlyLivestock = await Livestock.aggregate([
       { $match: { officerId } },
       {
         $group: {
           _id: { $month: "$createdAt" },
-          value: { $sum: 1 }
-        }
+          value: { $sum: 1 },
+        },
       },
-      {
-        $project: { month: "$_id", value: 1, _id: 0 }
-      }
+      { $project: { month: "$_id", value: 1, _id: 0 } },
     ]);
 
-  
+    // ✔ AgroAllied Type Distribution
+    const alliedTypes = await AgroAllied.aggregate([
+      { $match: { officerId } },
+      { $group: { _id: "$type", value: { $sum: 1 } } },
+      { $project: { type: "$_id", value: 1, _id: 0 } },
+    ]);
+
+    // RESPONSE
     res.status(200).json({
       officer,
       farmers,
       farms,
       crops,
       livestock,
+      agroAllieds,
       metrics,
       analytics: {
         cropTypes,
         livestockTypes,
+        alliedTypes,
         farmsPerFarmer,
         monthlyCrops,
-        monthlyLivestock
-      }
+        monthlyLivestock,
+      },
     });
-
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const updateOfficer = async (req, res) => {
   try {
@@ -403,8 +443,7 @@ export const updateOfficer = async (req, res) => {
       select: "-password",
     });
 
-    if (!updated)
-      return res.status(404).json({ message: "Officer not found" });
+    if (!updated) return res.status(404).json({ message: "Officer not found" });
 
     res.json(updated);
   } catch (err) {
@@ -426,8 +465,7 @@ export const deleteOfficer = async (req, res) => {
     const { officerId } = req.params;
 
     const deleted = await Officer.findByIdAndDelete(officerId);
-    if (!deleted)
-      return res.status(404).json({ message: "Officer not found" });
+    if (!deleted) return res.status(404).json({ message: "Officer not found" });
 
     res.json({ message: "Officer deleted successfully" });
   } catch (err) {
@@ -460,7 +498,7 @@ export const getFarmersByOfficer = async (req, res) => {
 export const getFarmers = async (req, res) => {
   try {
     const { officerId } = req.params;
-    const farmers = await Farmer.find({  });
+    const farmers = await Farmer.find({});
     res.json(farmers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -470,7 +508,7 @@ export const getFarmers = async (req, res) => {
 export const getFarmerById = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(id)
+    console.log(id);
     const farmers = await Farmer.find({ _id: id });
     res.json(farmers);
   } catch (err) {
@@ -483,13 +521,12 @@ export const updateFarmer = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const updated = await Farmer.findByIdAndUpdate({_id:id}, req.body, {
+    const updated = await Farmer.findByIdAndUpdate({ _id: id }, req.body, {
       new: true,
       runValidators: true,
     });
 
-    if (!updated)
-      return res.status(404).json({ message: "Farmer not found" });
+    if (!updated) return res.status(404).json({ message: "Farmer not found" });
 
     res.json(updated);
   } catch (err) {
@@ -499,11 +536,10 @@ export const updateFarmer = async (req, res) => {
 
 export const deleteFarmer = async (req, res) => {
   try {
-    const { id} = req.params;
+    const { id } = req.params;
 
-    const deleted = await Farmer.findByIdAndDelete({_id:id});
-    if (!deleted)
-      return res.status(404).json({ message: "Farmer not found" });
+    const deleted = await Farmer.findByIdAndDelete({ _id: id });
+    if (!deleted) return res.status(404).json({ message: "Farmer not found" });
 
     res.json({ message: "Farmer deleted successfully" });
   } catch (err) {
@@ -511,17 +547,15 @@ export const deleteFarmer = async (req, res) => {
   }
 };
 
-
 export const getFarmerDetails = async (req, res) => {
   try {
     const { farmerId } = req.params;
 
- 
     const farmer = await Farmer.findById(farmerId);
     if (!farmer) {
       return res.status(404).json({ message: "Farmer not found" });
     }
- 
+
     const farms = await Farm.find({ farmerId });
     const crops = await Crop.find({ farmerId });
     const livestock = await Livestock.find({ farmerId });
@@ -535,8 +569,6 @@ export const getFarmerDetails = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 /* =============================
    FARM CONTROLLERS
@@ -562,7 +594,7 @@ export const getFarmsByFarmer = async (req, res) => {
 
 export const getFarmsByOfficer = async (req, res) => {
   try {
-     const { officerId } = req.params;
+    const { officerId } = req.params;
     const farms = await Farm.find({ officerId });
     res.json(farms);
   } catch (err) {
@@ -572,7 +604,6 @@ export const getFarmsByOfficer = async (req, res) => {
 
 export const getFarms = async (req, res) => {
   try {
-   
     const farms = await Farm.find();
     res.json(farms);
   } catch (err) {
@@ -583,8 +614,8 @@ export const getFarms = async (req, res) => {
 export const getFarmById = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(id)
-    const farms = await Farm.find({_id:id});
+    console.log(id);
+    const farms = await Farm.find({ _id: id });
     res.json(farms);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -594,7 +625,7 @@ export const getFarmById = async (req, res) => {
 export const getFarmByFarmerId = async (req, res) => {
   try {
     const { farmerId } = req.params;
-    const farms = await Farm.find({farmerId});
+    const farms = await Farm.find({ farmerId });
     res.json(farms);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -604,11 +635,11 @@ export const getFarmByFarmerId = async (req, res) => {
 export const getFarmDetails = async (req, res) => {
   try {
     const { farmId } = req.params;
-    console.log(farmId)
+    console.log(farmId);
 
-    const farm = await Farm.findById({_id:farmId})
-      .populate("farmerId", "name phone address") 
-      .populate("officerId", "name email"); 
+    const farm = await Farm.findById({ _id: farmId })
+      .populate("farmerId", "name phone address")
+      .populate("officerId", "name email");
 
     if (!farm) {
       return res.status(404).json({ message: "Farm not found" });
@@ -617,13 +648,14 @@ export const getFarmDetails = async (req, res) => {
     const [crops, livestock, agroallied] = await Promise.all([
       Crop.find({ farmId }),
       Livestock.find({ farmId }),
-      AgroAllied.find({ farmId }).populate("farmerId farmId officerId"),,
+      AgroAllied.find({ farmId }).populate("farmerId farmId officerId"),
+      ,
     ]);
     res.json({
       farm,
       crops,
       livestock,
-      agroallied
+      agroallied,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -660,9 +692,6 @@ export const deleteFarm = async (req, res) => {
   }
 };
 
-
-
-
 /* =============================
    CROP CONTROLLERS
 ============================= */
@@ -697,13 +726,12 @@ export const getCrops = async (req, res) => {
 export const getCropById = async (req, res) => {
   try {
     const { id } = req.params;
-    const crops = await Crop.find({_id:id});
+    const crops = await Crop.find({ _id: id });
     res.json(crops);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const updateCrop = async (req, res) => {
   try {
@@ -721,7 +749,6 @@ export const updateCrop = async (req, res) => {
   }
 };
 
-
 export const deleteCrop = async (req, res) => {
   try {
     const { id } = req.params;
@@ -735,7 +762,6 @@ export const deleteCrop = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 /* =============================
    LIVESTOCK CONTROLLERS
@@ -772,7 +798,7 @@ export const getLivestock = async (req, res) => {
 export const getLivestockById = async (req, res) => {
   try {
     const { id } = req.params;
-    const livestock = await Livestock.find({_id:id});
+    const livestock = await Livestock.find({ _id: id });
     res.json(livestock);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -813,10 +839,7 @@ export const deleteLivestock = async (req, res) => {
   }
 };
 
-
-
 // AGROALLIED
-
 
 export const createAgroAllied = async (req, res) => {
   try {
@@ -908,7 +931,6 @@ export const getAlliedByFarmId = async (req, res) => {
 
 // UPDATE
 export const updateAgroAllied = async (req, res) => {
-
   try {
     const updated = await AgroAllied.findByIdAndUpdate(
       req.params.id,
@@ -934,5 +956,84 @@ export const deleteAgroAllied = async (req, res) => {
     res.json({ message: "Record deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// CREATE notification
+export const createNotification = async (req, res) => {
+  try {
+    const notification = await Notification.create(req.body);
+    res.status(201).json({ success: true, notification });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// GET all notifications (optionally for a specific user)
+export const getNotifications = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    const filter = userId ? { userId } : {};
+
+    const notifications = await Notification.find(filter).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({ success: true, notifications });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+// GET all notifications (optionally for a specific user)
+export const getAllNotification = async (req, res) => {
+  try {
+    const notifications = await Notification.find().sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({ success: true, notifications });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+// GET all notifications by  getNotificationsById
+export const getNotificationsById = async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    const notifications = await Notification.find({
+      _id: id,
+    });
+
+    res.status(200).json({ success: true, notifications });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// MARK notification as read
+export const markAsRead = async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { isRead: true },
+      { new: true }
+    );
+
+    res.status(200).json({ success: true, notification });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// DELETE notification
+export const deleteNotification = async (req, res) => {
+  try {
+    await Notification.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ success: true, message: "Notification deleted" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };

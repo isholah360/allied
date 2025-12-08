@@ -23,6 +23,8 @@ app.post("/api/agroallied/create", createAgroAlliedRegistry);
 app.post("/api/post", (req, res) => {
   res.json({ message: req.body });
 })
+
+ console.log(process.env.GMAIL_USER, process.env.GMAIL_PASS)
 connectDB();
 
 app.listen(PORT, () => {
